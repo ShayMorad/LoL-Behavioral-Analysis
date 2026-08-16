@@ -1,0 +1,34 @@
+source,check,observed,reference,note
+NA,unique_match_ids,1000,1000,Expected one unique match_id per matches row
+NA,duplicate_match_rows,0,0,Expected no duplicate match rows after extraction
+NA,matches_with_10_participant_rows,1000,1000,Expected standard Summoner's Rift matches to have 10 participant rows
+NA,matches_with_10_unique_player_ids,1000,1000,Checks duplicate/missing player identity within a match
+NA,matches_with_2_team_rows,1000,1000,Expected two team rows per match
+NA,complete_matches_with_5_winners,1000,1000,"For completed 5v5 games, exactly five participant rows should be winners"
+NA,missing_player_id_rows,0,0,Longitudinal analysis requires player_id
+NA,missing_game_start_rows,0,0,Temporal analysis requires game_start_ms
+NA,nonpositive_match_durations,0,0,Match duration must be positive
+NA,negative_inter_match_gap_pairs,0,0,A player should not have overlapping ranked matches
+NA,matches_with_two_of_each_standard_position,993,1000,Diagnostic only: checks TOP/JUNGLE/MIDDLE/BOTTOM/UTILITY assignment
+KR,unique_match_ids,1000,1000,Expected one unique match_id per matches row
+KR,duplicate_match_rows,0,0,Expected no duplicate match rows after extraction
+KR,matches_with_10_participant_rows,1000,1000,Expected standard Summoner's Rift matches to have 10 participant rows
+KR,matches_with_10_unique_player_ids,1000,1000,Checks duplicate/missing player identity within a match
+KR,matches_with_2_team_rows,1000,1000,Expected two team rows per match
+KR,complete_matches_with_5_winners,1000,1000,"For completed 5v5 games, exactly five participant rows should be winners"
+KR,missing_player_id_rows,0,0,Longitudinal analysis requires player_id
+KR,missing_game_start_rows,0,0,Temporal analysis requires game_start_ms
+KR,nonpositive_match_durations,0,0,Match duration must be positive
+KR,negative_inter_match_gap_pairs,0,0,A player should not have overlapping ranked matches
+KR,matches_with_two_of_each_standard_position,998,1000,Diagnostic only: checks TOP/JUNGLE/MIDDLE/BOTTOM/UTILITY assignment
+EU,unique_match_ids,1000,1000,Expected one unique match_id per matches row
+EU,duplicate_match_rows,0,0,Expected no duplicate match rows after extraction
+EU,matches_with_10_participant_rows,1000,1000,Expected standard Summoner's Rift matches to have 10 participant rows
+EU,matches_with_10_unique_player_ids,1000,1000,Checks duplicate/missing player identity within a match
+EU,matches_with_2_team_rows,1000,1000,Expected two team rows per match
+EU,complete_matches_with_5_winners,999,999,"For completed 5v5 games, exactly five participant rows should be winners"
+EU,missing_player_id_rows,0,0,Longitudinal analysis requires player_id
+EU,missing_game_start_rows,0,0,Temporal analysis requires game_start_ms
+EU,nonpositive_match_durations,0,0,Match duration must be positive
+EU,negative_inter_match_gap_pairs,0,0,A player should not have overlapping ranked matches
+EU,matches_with_two_of_each_standard_position,993,1000,Diagnostic only: checks TOP/JUNGLE/MIDDLE/BOTTOM/UTILITY assignment

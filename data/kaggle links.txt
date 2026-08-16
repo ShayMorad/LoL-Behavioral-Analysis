@@ -1,0 +1,2 @@
+https://www.kaggle.com/datasets/omaracornejo/matches-raw-euw
+https://www.kaggle.com/datasets/nathansmallcalder/lol-match-history-and-summoner-data-80k-matches
