@@ -1,0 +1,7 @@
+player_match_rows,players_with_observations,matches_with_tracked_players,duplicate_player_match_rows,source,cohort,linked_dataset,linked_parquet_parts
+22612,647,22461,0,NA,alias_confirmed,C:\Users\shaym\Desktop\ComputerScience\COURSES\Year 4\A Needle in a Data Haystack Introduction to Data Science\project\data\processed\tracking\linked\alias_confirmed\NA,1
+127679,1581,69393,0,NA,authoritative,C:\Users\shaym\Desktop\ComputerScience\COURSES\Year 4\A Needle in a Data Haystack Introduction to Data Science\project\data\processed\tracking\linked\authoritative\NA,1
+120320,1288,61191,0,KR,alias_confirmed,C:\Users\shaym\Desktop\ComputerScience\COURSES\Year 4\A Needle in a Data Haystack Introduction to Data Science\project\data\processed\tracking\linked\alias_confirmed\KR,1
+120583,1291,61381,0,KR,authoritative,C:\Users\shaym\Desktop\ComputerScience\COURSES\Year 4\A Needle in a Data Haystack Introduction to Data Science\project\data\processed\tracking\linked\authoritative\KR,1
+640609,4948,263846,0,EU,alias_confirmed,C:\Users\shaym\Desktop\ComputerScience\COURSES\Year 4\A Needle in a Data Haystack Introduction to Data Science\project\data\processed\tracking\linked\alias_confirmed\EU,4
+984321,8297,366147,0,EU,authoritative,C:\Users\shaym\Desktop\ComputerScience\COURSES\Year 4\A Needle in a Data Haystack Introduction to Data Science\project\data\processed\tracking\linked\authoritative\EU,5

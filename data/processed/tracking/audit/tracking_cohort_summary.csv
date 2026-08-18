@@ -1,0 +1,4 @@
+source,seed_aliases,seed_aliases_resolved_unique,seed_aliases_ambiguous,seed_aliases_unresolved,seed_alias_resolution_percent,primary_tracked_players,db_seed_ids_unique_to_source,supported_by_both,primary_alias_only,expanded_db_only,expanded_tracked_players,raw_json_files_scanned,raw_parse_errors
+NA,845,647,0,198,76.5680473372781,647,1580,646,1,934,1581,69393,0
+KR,1432,1288,2,142,89.94413407821229,1288,1282,1279,9,3,1291,61381,0
+EU,5229,4948,3,278,94.62612354178619,4948,3896,547,4401,3349,8297,366328,0
