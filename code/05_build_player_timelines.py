@@ -956,7 +956,6 @@ def main() -> None:
     print(f"\nRanked history:  {ranked_out}")
     print(f"Solo420 targets: {solo_out}")
     print(f"Audit:           {audit_out}")
-    print("\nNext step after this passes: EDA + session-threshold / remake-policy decisions.")
 
 
 if __name__ == "__main__":
