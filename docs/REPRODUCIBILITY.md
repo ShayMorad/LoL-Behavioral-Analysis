@@ -1,122 +1,110 @@
 # Reproducing the Project
 
-This file describes the recommended way to run the submitted code on a clean
-machine. The commands are intentionally platform-neutral where possible.
+The submitted pipeline is designed to run from the **processed-data stage** on Linux, Windows, or macOS.
 
-## Python version
+## 1. Environment
 
 Use **Python 3.10 or newer**.
 
-The project uses modern Python type syntax and has been designed around Python
-3.10+.
-
-## Install dependencies
-
 From the project root:
 
-```text
+```bash
 python -m pip install -r requirements.txt
+python code/run_project.py check
 ```
 
-Then verify the environment and required project inputs:
+No PowerShell-specific paths, Bash line continuations, GUI display backend, or hard-coded Windows directories are required. Plotting uses Matplotlib's non-interactive `Agg` backend for headless lab machines.
+
+## 2. Required processed inputs
+
+Keep:
 
 ```text
-python run_project.py q1 --check-only
+data/processed/full_na/
+data/processed/full_kr/
+data/processed/full_eu/
+data/processed/tracking/authoritative/{NA,KR,EU}/tracked_players.parquet
+data/processed/tracking/alias_confirmed/{NA,KR,EU}/tracked_players.parquet
 ```
 
-The runner checks:
+The canonical `full_*` directories contain `matches/`, `participants/`, `teams/`, `team_bans/`, and extraction audit metadata.
 
-- Python version
-- required Python packages
-- required stage scripts
-- required processed Parquet inputs for the selected starting stage
+The small tracked-player lookup tables are processed provenance inputs. They were previously created from raw seed/PUUID evidence and should not be inferred again from match counts or Riot names.
 
-## Recommended Question 1 reproduction
+## 3. Clean rerun
 
-The original raw dataset is very large and is not required to reproduce the
-main Question 1 analysis when the processed data are available.
+To remove only outputs that are reproducible from the processed inputs:
 
-To rebuild Question 1 beginning with tracked-player linkage:
-
-```text
-python run_project.py q1 --start-at 3
+```bash
+python code/run_project.py clean --yes
 ```
 
-This runs:
+This removes:
 
 ```text
-03  tracking coverage + permanent player-match linkage
-04  analytical-readiness audit
-05  chronological player timelines / features
-06  exploratory analysis
-07  statistical analysis
-08  predictive modeling
-09  robustness analysis
-```
-
-All stages use `sys.executable`, `pathlib.Path`, and Python subprocess calls.
-The runner does not depend on PowerShell, Bash line continuations, or Windows
-path separators.
-
-## Faster analysis-only reproduction
-
-If the timeline Parquet files under:
-
-```text
-data/analysis/timelines/solo420_targets/
-```
-
-already exist, the analytical stages can be reproduced directly:
-
-```text
-python run_project.py q1 --start-at 6
-```
-
-## Dry run
-
-To inspect commands without executing them:
-
-```text
-python run_project.py q1 --start-at 3 --dry-run
-```
-
-## Why stages 00-02 are not the default reproduction path
-
-Stages 00-02 document and reproduce the original raw-data verification,
-Match-V5 extraction, and tracked-player reconstruction. They require the
-original large raw Match-V5 archive, seed-list files, and `league_data.db`.
-
-They are included in the submitted code because they are part of the project
-implementation and provenance chain, but course staff do not need to rerun
-tens of gigabytes of raw extraction to inspect or reproduce the reported
-analysis.
-
-When the original raw data are available, the individual scripts can still be
-run directly using their `--help` output and documented command-line
-arguments.
-
-## Generated outputs
-
-Question 1 writes its generated results under:
-
-```text
+data/analysis/
 data/processed/analysis_audit/
-data/analysis/timelines/
-data/analysis/eda/
-data/analysis/statistics/
-data/analysis/prediction/
-data/analysis/q1_robustness/
+data/processed/tracking/linked/
+data/processed/tracking/coverage_audit/
 ```
 
-These outputs are reproducible and may be safely regenerated with
-`--overwrite`.
+It does **not** remove canonical `full_*` data or the authoritative/alias-confirmed tracked-player lookup tables.
 
-## Data availability
+Then run:
 
-The original dataset source is documented in the report and README. The
-processed datasets are documented in `docs/DATA_AND_PIPELINE_GUIDE.md`.
+```bash
+python code/run_project.py q1 --strict-reference
+```
 
-For code-only submission, the large raw corpus should not be bundled inside the
-code archive. If the processed data are distributed separately (for example
-through the project repository), the runner can reproduce the analysis from
-stage 03 onward.
+The runner executes:
+
+```text
+01_prepare_data.py
+    -> validates canonical processed data
+    -> validates tracked-player lookup tables
+    -> rebuilds linked tracked player-match Parquet shards
+    -> rebuilds compact coverage/readiness audits
+    -> rebuilds target-centric Q1 timelines
+
+02_q1_analysis.py
+    -> descriptive EDA / threshold justification
+    -> within-player statistical models + confidence intervals
+    -> Holm multiple-testing correction / sensitivity analyses
+    -> chronological entropy decision trees + baselines
+    -> accuracy/precision/recall/F1/confusion-matrix/ROC-AUC evaluation
+    -> tracking/short-game robustness
+    -> final report-ready figures
+    -> reference regression checks
+```
+
+## 4. Analysis-only rerun
+
+If timelines already exist:
+
+```bash
+python code/run_project.py q1 --analysis-only --strict-reference
+```
+
+## 5. Expected regression checks
+
+The Q1 script verifies important results from the previously validated run, including:
+
+- primary ≥10-minute sample rows by region,
+- best pre-pruned entropy-tree parameters,
+- held-out history/behavior/combined ROC-AUC values,
+- combined-minus-history AUC increment,
+- stability of the ≥5-minute short-game sensitivity.
+
+Small numeric tolerance is allowed for library-version differences. Use the generated file:
+
+```text
+data/analysis/q1/audit/reference_regression_checks.csv
+```
+
+before changing report numbers.
+
+## 6. Raw data
+
+`data/raw/` can be retained locally as provenance/backup, but the normal lab reproduction does not require tens of gigabytes of raw JSON. The earlier raw JSON extraction and seed/PUUID identity-reconstruction scripts are therefore not part of the compact default execution path.
+
+If complete raw-pipeline reproducibility is required for archival purposes, retain the historical extractor/tracking scripts outside the main three-file submitted pipeline (for example under `archive/`) rather than mixing them into the normal Q1 execution path.

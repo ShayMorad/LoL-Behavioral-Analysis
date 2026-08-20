@@ -1,7 +1,7 @@
-source,history_scope,players_with_at_least_2_observed_matches,next_match_prediction_pairs,negative_gap_pairs
-NA,ranked_420_plus_440,1516,126098,0
-NA,solo_duo_420_only,1465,118822,0
-KR,ranked_420_plus_440,1232,119292,0
-KR,solo_duo_420_only,1163,113025,0
-EU,ranked_420_plus_440,8153,976024,0
-EU,solo_duo_420_only,8023,927661,0
+source,scope,consecutive_pairs,players_with_pairs,negative_gap_pairs
+NA,ranked_420_plus_440,126098,1516,0
+NA,solo420_only,118822,1465,0
+KR,ranked_420_plus_440,119292,1232,0
+KR,solo420_only,113025,1163,0
+EU,ranked_420_plus_440,976024,8153,0
+EU,solo420_only,927661,8023,0
