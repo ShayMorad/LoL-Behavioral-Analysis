@@ -1,18 +1,38 @@
 # Analysis Reference
 
-A concise map from the **three report problems** to their code, analytical unit, methods, outputs, and interpretation. This is intended as a quick reference for reviewers who want to connect the report to the implementation.
+This document maps the final **research questions, code, inputs, methods, outputs, report figures, demo views, and interpretation boundaries**.
+
+It is intended as the quickest technical bridge between the final report and the repository.
 
 ---
 
-## Overview
+# Project map
 
-| Problem | Scientific unit | Script | Main output folder |
+| Problem | Script | Primary input | Main output |
 | --- | --- | --- | --- |
-| **1. Temporal Behavior & Next-Match Performance** | tracked player × target match | `code/02_q1_analysis.py` | `data/analysis/q1/` |
-| **2. Champion Pairings & Combo Performance** | unordered same-team champion pair | `code/03_q2_pairings.py` | `data/analysis/q2/` |
-| **3. Champion Network Structure & Communities** | champion graph / community | `code/04_q3_network.py` | `data/analysis/q3/` |
+| 1. Temporal behavior | `code/02_q1_analysis.py` | Q1 target timelines | `data/analysis/q1/` |
+| 2. Champion pairings | `code/03_q2_pairings.py` | canonical participant Parquet | `data/analysis/q2/` |
+| 3. Champion network | `code/04_q3_network.py` | Q2 pair/champion/role tables | `data/analysis/q3/` |
 
-`code/01_prepare_data.py` is a shared prerequisite for Problem 1 only. Problems 2 and 3 deliberately use the broader team-composition corpus rather than the tracked-player cohort.
+Preparation and orchestration:
+
+```text
+code/01_prepare_data.py
+code/run_project.py
+```
+
+Final reports:
+
+```text
+docs/report/Report.pdf
+docs/report/Report_noimages.pdf
+```
+
+Interactive presentation layer:
+
+```text
+demo/app.py
+```
 
 ---
 
@@ -22,13 +42,34 @@ A concise map from the **three report problems** to their code, analytical unit,
 
 > How are recent competitive volume, session depth, and post-loss requeue timing associated with performance in a player's subsequent Ranked Solo/Duo match?
 
-## Inputs
+## Analysis population
+
+Main target:
 
 ```text
-data/analysis/timelines/solo420_targets/{NA,KR,EU}.parquet
+queue 420
+target duration >=10 minutes
+has prior ranked history
+target win observed
 ```
 
-These timelines are created by `01_prepare_data.py` from authoritative tracked-player linkage and contain target-match outcomes plus strictly pre-target history features.
+Observed history:
+
+```text
+queues 420 + 440
+```
+
+Main cohort:
+
+```text
+authoritative tracked players
+```
+
+Robustness cohort:
+
+```text
+alias_confirmed
+```
 
 ## Main exposures
 
@@ -46,15 +87,21 @@ Sensitivity:
 45 / 60 / 90 minutes
 ```
 
-Session depth is the game number inside the observed session, capped for modeling/plotting at `8+`.
-
 ### H2 — Post-loss requeue timing
 
-The analysis conditions on the previous ranked game being a loss and at least ten minutes long. Requeue delay is examined categorically and with a continuous log sensitivity specification.
+Primary categorical bins from:
+
+```text
+<=5m
+...
+>24h
+```
+
+with continuous `log2(1 + gap)` sensitivity.
 
 ### H3 — Recent ranked volume
 
-Primary activity window:
+Primary window:
 
 ```text
 6 hours
@@ -66,25 +113,31 @@ Sensitivity:
 3 / 12 / 24 hours
 ```
 
-Recent-game counts are capped at `6+` for the primary categorical model/plot.
-
 ## Inference
 
-Primary inference uses a within-player linear probability model of target victory with:
-- player fixed effects;
-- historical/patch controls;
-- two-way clustered uncertainty by player and physical match;
-- Holm family-wise correction for the predefined behavior-effect families.
+Primary model:
 
-Interpretation is in **percentage-point change in next-match win probability**.
+- linear probability model for target win;
+- player fixed effects via within-player demeaning;
+- historical and patch controls;
+- two-way clustered standard errors by player and physical match;
+- Holm correction within predefined behavior-effect families.
+
+Interpretation:
+
+```text
+percentage-point change in next-match win probability
+```
 
 ## Prediction
 
 Three entropy-tree feature sets:
 
-1. historical/context features;
-2. behavioral features;
-3. combined history + behavior.
+```text
+history
+behavior
+combined
+```
 
 Chronological split within region:
 
@@ -92,30 +145,75 @@ Chronological split within region:
 70% train / 15% validation / 15% test
 ```
 
-Validation chooses `max_depth` and `min_samples_leaf`. Final evaluation reports accuracy, precision, recall, F1, confusion matrix, ROC and ROC-AUC alongside simple baselines.
+Validation grid:
 
-## Robustness
+```text
+max_depth = 2,3,4,5,6,8
+min_samples_leaf = 250,1000,3000
+```
 
-- authoritative vs alias-confirmed cohort;
-- target-duration threshold >=10 min vs >=5 min;
-- alternative session boundaries;
-- alternative recent-volume windows.
+## Frozen key results
 
-## Report figures
+| Metric | Result |
+| --- | ---: |
+| Primary target observations | **1,146,681** |
+| History tree test ROC-AUC | **0.5138** |
+| Behavior tree test ROC-AUC | **0.5123** |
+| Combined tree test ROC-AUC | **0.5185** |
+| Combined − history AUC | **+0.0047** |
+| Holm-significant robustness terms | **0** |
+| Max >=5m coefficient change | **0.0922 pp** |
 
-| Figure | Generated file | Purpose |
-| --- | --- | --- |
-| 1 | `figure_1_inter_match_gap_ecdf.png` | justify session-threshold sensitivity |
-| 2 | `figure_2_adjusted_behavior_effects.png` | adjusted H1/H2/H3 estimates + 95% CIs |
-| 3 | `figure_3_prediction_evaluation.png` | held-out ROC + normalized confusion matrix |
-| 4 | `figure_4_feature_importance.png` | interpret combined decision tree |
-| 5 | `figure_5_tree_top_levels.png` | readable top levels of entropy tree |
+Selected trees:
+
+```text
+history  -> depth 6, leaf 250
+behavior -> depth 2, leaf 3000
+combined -> depth 6, leaf 3000
+```
 
 ## Main conclusion
 
-There is little evidence for a universal short-term fatigue or immediate post-loss requeue penalty. Estimated behavioral effects are small/unstable across regions and parameterizations, and behavioral timing adds only limited predictive value beyond historical performance.
+There is little evidence for a universal short-term fatigue/session-depth/post-loss penalty.
 
-**Interpretation boundary:** this is observational behavioral timing, not a direct measurement of fatigue or tilt.
+The estimated behavioral effects are small and inconsistent across regions, and behavioral timing adds only limited held-out predictive information beyond recent historical performance.
+
+## Report figures
+
+| Figure | File | Purpose |
+| --- | --- | --- |
+| 1 | `data/analysis/q1/figures/report/figure_1_inter_match_gap_ecdf.png` | justify session-threshold sensitivity |
+| 2 | `data/analysis/q1/figures/report/figure_2_adjusted_behavior_effects.png` | adjusted H1/H2/H3 estimates + 95% CIs |
+| 3 | `data/analysis/q1/figures/report/figure_3_prediction_evaluation.png` | held-out ROC + confusion matrix |
+| 4 | `data/analysis/q1/figures/report/figure_4_feature_importance.png` | combined-tree interpretation |
+| 5 | `data/analysis/q1/figures/report/figure_5_tree_top_levels.png` | readable top levels of entropy tree |
+
+## Demo view
+
+`demo/app.py` uses:
+
+```text
+data/analysis/q1/tables/key_results_for_report.csv
+data/analysis/q1/tables/behavior_effects.csv
+data/analysis/q1/figures/report/figure_3_prediction_evaluation.png
+```
+
+The demo emphasizes the **weak behavioral signal** rather than presenting the tree as a strong win predictor.
+
+## Interpretation boundary
+
+Report:
+
+```text
+association / prediction
+```
+
+Do not claim:
+
+```text
+causal fatigue
+measured psychological tilt
+```
 
 ---
 
@@ -125,23 +223,31 @@ There is little evidence for a universal short-term fatigue or immediate post-lo
 
 > Which champion pairs are selected together more often than expected, and how is co-selection strength related to pair performance?
 
-## Inputs
-
-Canonical regional participant Parquet:
+## Input
 
 ```text
 data/processed/full_{na,kr,eu}/participants/*.parquet
 ```
 
-Filtering:
-- queue 420;
-- duration >=10 minutes;
-- exactly five distinct champions per team;
-- consistent team result.
+Filter:
+
+```text
+queue 420
+duration >=10 minutes
+valid five-champion teams
+```
 
 ## Analytical unit
 
-One **unordered champion pair** within one valid team. Every five-champion team contributes ten pair observations before aggregation.
+One unordered champion pair within a valid team.
+
+Each five-champion team contributes:
+
+```text
+10 pair observations
+```
+
+before aggregation.
 
 ## Measures
 
@@ -151,50 +257,114 @@ One **unordered champion pair** within one valid team. Every five-champion team 
 games_together
 ```
 
-Answers: *Which pairs are simply seen together most often?*
+### Expected co-picks
+
+```text
+expected = appearances_A × appearances_B / valid_teams
+```
+
+### Lift
+
+```text
+lift = observed / expected
+```
 
 ### Normalized association
 
 ```text
-lift = observed co-picks / expected co-picks from individual popularity
 association = log2(lift)
 ```
 
-Answers: *Which pairs are selected together disproportionately often after accounting for how popular each champion is?*
-
-### Pair win surplus
+### Descriptive pair win surplus
 
 ```text
 100 × [pair win rate − mean(individual champion win rates)]
 ```
 
-Answers: *Does the pair's observed outcome sit above or below a simple individual-strength baseline?*
+## Support thresholds
 
-It is descriptive, not causal.
+```text
+>=500 games  -> combo landscape
+>=1000 games -> high-support ranking/performance comparisons
+```
 
-## Support rules
+## Representative results
 
-- at least **500** games together for the combo landscape;
-- at least **1000** games together for high-support ranking/performance displays.
+Most common raw pairs include:
+
+```text
+Lucian + Nami
+Nautilus + Kaisa
+Diana + Yasuo
+Kaisa + Sylas
+Lulu + Yunara
+```
+
+Strong normalized pairings include:
+
+```text
+Zeri + Yuumi
+Rakan + Xayah
+KogMaw + Lulu
+Twitch + Yuumi
+Lucian + Nami
+```
+
+These lists illustrate why raw popularity and normalized association must be treated separately.
+
+## Main conclusion
+
+Raw frequency, normalized co-selection, and pair performance measure different properties.
+
+A pair can be unusually common together after popularity normalization without having unusually high descriptive win surplus.
 
 ## Report figures
 
-| Figure | Generated file | Purpose |
+| Figure | File | Purpose |
 | --- | --- | --- |
-| 6 | `figure_6_pair_rankings.png` | raw frequency versus popularity-normalized association |
-| 7 | `figure_7_combo_landscape.png` | association versus descriptive win surplus, colored by support |
+| 6 | `data/analysis/q2/figures/report/figure_6_pair_rankings.png` | raw popularity vs normalized association |
+| 7 | `data/analysis/q2/figures/report/figure_7_combo_landscape.png` | association vs descriptive win surplus |
 
 Supplementary:
 
 ```text
-pair_win_surplus.png
+data/analysis/q2/figures/supplementary/pair_win_surplus.png
 ```
 
-## Main conclusion
+## Demo view
 
-Raw popularity and normalized co-selection capture different properties. Some pairs are unusually likely to appear together even after popularity normalization, but strong association does not consistently imply higher pair win surplus.
+The interactive champion selector reads:
 
-**Interpretation boundary:** call this **co-selection/association**, not proven champion synergy.
+```text
+data/analysis/q2/tables/champion_stats.csv
+data/analysis/q2/tables/pair_stats.csv
+```
+
+For one selected champion it shows:
+
+- most common partner;
+- strongest normalized partner;
+- high-support win-surplus partner;
+- association-vs-performance scatter;
+- sortable partner table.
+
+## Interpretation boundary
+
+Use:
+
+```text
+co-selection
+association
+descriptive win surplus
+```
+
+Avoid:
+
+```text
+proven synergy
+causal champion interaction
+optimal duo recommendation
+```
 
 ---
 
@@ -206,94 +376,192 @@ Raw popularity and normalized co-selection capture different properties. Some pa
 
 ## Inputs
 
-Problem 3 reuses the compact tables produced by Problem 2:
-
 ```text
 data/analysis/q2/tables/champion_stats.csv
 data/analysis/q2/tables/pair_stats.csv
 data/analysis/q2/tables/role_counts.csv
 ```
 
-This keeps the graph script fast and makes the dependency between the two problems explicit.
+Problem 3 intentionally reuses Problem 2's compact outputs.
 
-## Primary association graph
+## Primary graph
 
-- node = champion;
-- edge retained when pair support >=500 and `log2(lift) > 0`;
-- edge weight = positive normalized association.
+Node:
 
-The raw-frequency graph is retained as a popularity-oriented comparison.
+```text
+champion
+```
 
-## Main graph methods
+Edge retained when:
 
-### Louvain + modularity
+```text
+games_together >=500
+association >0
+```
 
-Louvain identifies densely connected groups on the largest supported association component. Modularity provides a structural score for the partition.
+Primary edge weight:
 
-The role-composition heatmap then asks whether these purely network-derived communities have an interpretable relationship with observed Top/Jungle/Mid/ADC/Support appearances.
+```text
+log2(lift)
+```
 
-### Weighted PageRank
+## Louvain
 
-Association-weighted PageRank identifies champions connected to other structurally important champions through above-expected co-selection relationships.
+Louvain identifies dense groups on the largest supported association component.
 
-The report uses normalized-association PageRank rather than raw-frequency PageRank because it better separates network position from simple popularity.
+The report currently summarizes **7 communities**.
 
-### Maximal cliques
+Role composition is compared using:
 
-Clique analysis first keeps the strongest 20% of association edges, then searches for maximal groups of size >=3 where every champion is connected to every other champion.
+```text
+Top / Jungle / Mid / ADC / Support
+```
 
-These are higher-order composition motifs, not claims that all members causally improve one another.
+## Association-weighted PageRank
 
-### Clique percolation
+Representative high-centrality champions include:
 
-3-clique percolation provides an overlapping-community view where tightly connected groups can share champions.
+```text
+Lulu
+Milio
+Jinx
+Caitlyn
+Kaisa
+Ziggs
+Diana
+Orianna
+Nami
+```
+
+The main report uses normalized-association PageRank rather than raw-frequency PageRank.
+
+## Cliques
+
+Clique analysis keeps the strongest association edges and finds fully connected groups of size >=3.
+
+Representative high-association cliques include:
+
+```text
+Lulu | XinZhao | Yunara
+Jinx | Milio | Volibear
+Caitlyn | Lux | Volibear
+Jinx | Milio | Mordekaiser
+Jinx | Milio | Nasus
+Kaisa | LeeSin | Neeko
+```
 
 ## Comparison methods
 
-The project also evaluates:
-- Girvan-Newman community detection;
-- K-Means++ on standardized co-pick profiles;
-- elbow/SSE and silhouette validation for `k=2..6`;
-- Ward hierarchical clustering and dendrogram;
-- DBSCAN with data-driven epsilon;
-- PCA visualization;
-- cosine similarity of champion co-pick profiles.
+Supplementary comparisons include:
 
-These are **comparison/supplementary methods**. Louvain is the primary network partition used in the report.
+```text
+Girvan-Newman
+K-Means++
+Ward hierarchical clustering
+DBSCAN
+PCA
+cosine profile similarity
+```
 
-## Report figures
-
-| Figure | Generated file | Purpose |
-| --- | --- | --- |
-| 8 | `figure_8_louvain_community_network.png` | visual community structure |
-| 9 | `figure_9_community_role_heatmap.png` | interpret communities through role composition |
-| 10 | `figure_10_pagerank_association.png` | most central champions in normalized network |
-| 11 | `figure_11_strongest_cliques.png` | strongest higher-order tightly connected groups |
-
-Important supplementary figures include:
-- normalized-association heatmap;
-- clique-percolation sizes;
-- K-Means elbow and silhouette plots;
-- K-Means / hierarchical / DBSCAN PCA views;
-- hierarchical dendrogram;
-- Girvan-Newman network;
-- raw-frequency PageRank;
-- co-pick-profile similarity ranking.
+K-Means model selection favored a coarse `k=2` profile partition by silhouette score, while graph methods provided the more interpretable relational view used in the report.
 
 ## Main conclusion
 
-The normalized champion network contains interpretable role-related communities, structurally central champions, and recurring higher-order groups. Ordinary clustering captures broader/coarser profile divisions, while graph methods better preserve the relational structure of team composition.
+The normalized champion network contains interpretable role-related communities, structurally central champions, and recurring higher-order groups.
 
-**Interpretation boundary:** network communities reflect co-selection structure and role complementarity; they do not prove strategic intent or causal synergy.
+Graph methods are the preferred primary representation because they preserve the pair relationships directly.
+
+## Report figures
+
+| Figure | File | Purpose |
+| --- | --- | --- |
+| 8 | `data/analysis/q3/figures/report/figure_8_louvain_community_network.png` | visual community structure |
+| 9 | `data/analysis/q3/figures/report/figure_9_community_role_heatmap.png` | role interpretation of communities |
+| 10 | `data/analysis/q3/figures/report/figure_10_pagerank_association.png` | central champions |
+| 11 | `data/analysis/q3/figures/report/figure_11_strongest_cliques.png` | higher-order co-selection motifs |
+
+## Demo view
+
+The champion-network tab reads:
+
+```text
+data/analysis/q3/tables/centrality.csv
+data/analysis/q3/tables/louvain_communities.csv
+data/analysis/q3/tables/community_role_percent.csv
+data/analysis/q3/tables/maximal_cliques.csv
+data/analysis/q3/figures/report/figure_8_louvain_community_network.png
+```
+
+It also reuses Q2 `pair_stats.csv` to display a selected champion's strongest supported network neighbors.
+
+## Interpretation boundary
+
+Use:
+
+```text
+network community
+structural centrality
+co-selection motif
+role complementarity
+```
+
+Avoid:
+
+```text
+strategic intent
+causal synergy
+guaranteed optimal composition
+```
 
 ---
 
-# Report-to-code figure map
+# Final report-to-code map
 
 ```text
-Problem 1 -> Figures 1-5 -> data/analysis/q1/figures/report/
-Problem 2 -> Figures 6-7 -> data/analysis/q2/figures/report/
-Problem 3 -> Figures 8-11 -> data/analysis/q3/figures/report/
+Problem 1 -> code/02_q1_analysis.py -> Figures 1-5
+Problem 2 -> code/03_q2_pairings.py -> Figures 6-7
+Problem 3 -> code/04_q3_network.py -> Figures 8-11
 ```
 
-All additional figures generated by the scripts are deliberately separated into `figures/supplementary/` so the final report can remain selective while the repository still demonstrates the breadth of the analysis.
+Final report:
+
+```text
+docs/report/Report.pdf
+```
+
+Text-only report:
+
+```text
+docs/report/Report_noimages.pdf
+```
+
+Interactive demo:
+
+```text
+demo/app.py
+```
+
+---
+
+# Generated artifact map
+
+```text
+Problem 1
+  data/analysis/q1/tables/
+  data/analysis/q1/figures/
+  data/analysis/q1/audit/
+
+Problem 2
+  data/analysis/q2/tables/
+  data/analysis/q2/figures/
+  data/analysis/q2/summary.json
+
+Problem 3
+  data/analysis/q3/tables/
+  data/analysis/q3/figures/
+  data/analysis/q3/summary.json
+```
+
+Large Q1 timelines and prediction Parquet are intentionally treated as generated intermediates rather than presentation artifacts.
+
+The report, README, technical documentation, and Streamlit dashboard all point back to the same three finalized analyses.
