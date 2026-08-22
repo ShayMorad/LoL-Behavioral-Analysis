@@ -362,7 +362,6 @@ def main() -> int:
         return 0
 
     # Full reproduction follows the dependency order: prepare -> Q1 -> Q2 -> Q3.
-    # Full reproduction follows the dependency order: prepare -> Q1 -> Q2 -> Q3.
     if args.command == "all":
         if ensure_ok():
             return 1
