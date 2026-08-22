@@ -12,6 +12,7 @@ __pycache__/
 .coverage
 htmlcov/
 generate_project_tree.py
+.gitignore
 
 # -----------------------------------------------------------------------------
 # IDE / OS metadata
@@ -64,3 +65,10 @@ docs/report/graphics/
 *.log
 *.prof
 *.lprof
+
+
+
+/code.zip
+/noimage_group39.pdf
+/RUN_INSTRUCTIONS.txt
+/writeup_group39.pdf
