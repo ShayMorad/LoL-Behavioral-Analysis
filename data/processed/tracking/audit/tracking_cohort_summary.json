@@ -1,0 +1,58 @@
+{
+  "primary_definition": "Fresh original seed-list Riot ID matched uniquely to exactly one raw Match-V5 PUUID in the corresponding source; hashed player_id verified to exist in the canonical participants Parquet.",
+  "expanded_definition": "Primary plus player_mastery PUUIDs from league_data.db whose hashed player_id occurs in exactly one supplied regional corpus.",
+  "main_analysis_cohort": "primary",
+  "expanded_usage": "robustness/sensitivity analysis only",
+  "db_distinct_seed_puuids_hashed": 7095,
+  "db_seed_ids_present_in_multiple_sources": 2,
+  "sources": [
+    {
+      "source": "NA",
+      "seed_aliases": 845,
+      "seed_aliases_resolved_unique": 647,
+      "seed_aliases_ambiguous": 0,
+      "seed_aliases_unresolved": 198,
+      "seed_alias_resolution_percent": 76.5680473372781,
+      "primary_tracked_players": 647,
+      "db_seed_ids_unique_to_source": 1580,
+      "supported_by_both": 646,
+      "primary_alias_only": 1,
+      "expanded_db_only": 934,
+      "expanded_tracked_players": 1581,
+      "raw_json_files_scanned": 69393,
+      "raw_parse_errors": 0
+    },
+    {
+      "source": "KR",
+      "seed_aliases": 1432,
+      "seed_aliases_resolved_unique": 1288,
+      "seed_aliases_ambiguous": 2,
+      "seed_aliases_unresolved": 142,
+      "seed_alias_resolution_percent": 89.94413407821229,
+      "primary_tracked_players": 1288,
+      "db_seed_ids_unique_to_source": 1282,
+      "supported_by_both": 1279,
+      "primary_alias_only": 9,
+      "expanded_db_only": 3,
+      "expanded_tracked_players": 1291,
+      "raw_json_files_scanned": 61381,
+      "raw_parse_errors": 0
+    },
+    {
+      "source": "EU",
+      "seed_aliases": 5229,
+      "seed_aliases_resolved_unique": 4948,
+      "seed_aliases_ambiguous": 3,
+      "seed_aliases_unresolved": 278,
+      "seed_alias_resolution_percent": 94.62612354178619,
+      "primary_tracked_players": 4948,
+      "db_seed_ids_unique_to_source": 3896,
+      "supported_by_both": 547,
+      "primary_alias_only": 4401,
+      "expanded_db_only": 3349,
+      "expanded_tracked_players": 8297,
+      "raw_json_files_scanned": 366328,
+      "raw_parse_errors": 0
+    }
+  ]
+}

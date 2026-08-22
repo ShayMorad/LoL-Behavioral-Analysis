@@ -40,7 +40,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -49,10 +48,10 @@ import duckdb
 import pandas as pd
 
 
+# Shared settings used when rebuilding longitudinal Q1 features.
 REGIONS = ("NA", "KR", "EU")
 SESSION_THRESHOLDS_MIN = (30, 45, 60, 90)
 RECENT_WINDOWS_HOURS = (3, 6, 12, 24)
-COHORTS = ("alias_confirmed", "authoritative")
 
 REQUIRED_MATCH_COLUMNS = {
     "match_id",
@@ -110,10 +109,12 @@ OPTIONAL_TARGET_COLUMNS = (
 
 
 def project_root() -> Path:
+    """Return the repository root inferred from this script location."""
     return Path(__file__).resolve().parents[1]
 
 
 def parse_named_path(text: str) -> Tuple[str, Path]:
+    """Parse a NAME=PATH command-line value into a normalized source name and Path."""
     if "=" not in text:
         raise argparse.ArgumentTypeError(f'Expected NAME=PATH, got "{text}"')
     name, raw = text.split("=", 1)
@@ -124,14 +125,17 @@ def parse_named_path(text: str) -> Tuple[str, Path]:
 
 
 def sql_path(path: Path) -> str:
+    """Convert a filesystem path to a DuckDB-safe absolute POSIX string."""
     return path.resolve().as_posix().replace("'", "''")
 
 
 def sql_text(text: str) -> str:
+    """Escape a plain string before embedding it in a DuckDB SQL literal."""
     return text.replace("'", "''")
 
 
 def parquet_glob(root: Path, table: str) -> str:
+    """Validate a canonical Parquet table directory and return its DuckDB glob."""
     d = root / table
     if not d.exists() or not any(d.glob("*.parquet")):
         raise FileNotFoundError(f"Missing Parquet table: {d}")
@@ -139,6 +143,7 @@ def parquet_glob(root: Path, table: str) -> str:
 
 
 def tracked_file(tracking_root: Path, cohort: str, source: str) -> Path:
+    """Return one processed tracked-player lookup and fail clearly if it is missing."""
     p = tracking_root / cohort / source / "tracked_players.parquet"
     if not p.exists():
         raise FileNotFoundError(
@@ -150,6 +155,7 @@ def tracked_file(tracking_root: Path, cohort: str, source: str) -> Path:
 
 
 def linked_glob(linked_root: Path, source: str) -> str:
+    """Return the regenerated linked-player Parquet glob for one region."""
     d = linked_root / source
     if not d.exists() or not any(d.glob("*.parquet")):
         raise FileNotFoundError(f"Missing linked Parquet dataset: {d}")
@@ -157,6 +163,7 @@ def linked_glob(linked_root: Path, source: str) -> str:
 
 
 def table_columns(con: duckdb.DuckDBPyConnection, parquet: str) -> set[str]:
+    """Read the column names exposed by a Parquet dataset through DuckDB."""
     return set(
         con.execute(f"DESCRIBE SELECT * FROM read_parquet('{parquet}', union_by_name=true)")
         .fetchdf()["column_name"]
@@ -165,6 +172,7 @@ def table_columns(con: duckdb.DuckDBPyConnection, parquet: str) -> set[str]:
 
 
 def prepare_dir(path: Path, overwrite: bool) -> None:
+    """Create an output directory, optionally replacing existing generated contents."""
     if path.exists() and any(path.iterdir()):
         if not overwrite:
             raise RuntimeError(f"Output directory is not empty: {path}. Use --overwrite.")
@@ -183,6 +191,7 @@ def write_sharded_parquet(
     for old in output_dir.glob("*.parquet"):
         old.unlink()
 
+    # Stable row numbers make the large linkage export reproducible across shards.
     con.execute("DROP TABLE IF EXISTS linked_export_tmp")
     con.execute(
         f"""
@@ -261,6 +270,7 @@ def validate_and_link(
                 f"{source}: missing required columns. matches={missing_m}; participants={missing_p}"
             )
 
+        # Validate match uniqueness, player IDs, and the expected 10-player/2-team structure.
         canonical = con.execute(
             f"""
             WITH m AS (
@@ -340,7 +350,7 @@ def validate_and_link(
         if any(lookup_checks.values()):
             raise RuntimeError(f"{source}: tracking lookup validation failed: {lookup_checks}")
 
-        # Coverage at the physical-match level.
+        # Count tracked players from each cohort in every physical match.
         con.execute("DROP TABLE IF EXISTS match_cov")
         con.execute(
             f"""
@@ -397,8 +407,7 @@ def validate_and_link(
             }
         )
 
-        # Materialize both cohorts; later Q1 uses authoritative, robustness uses
-        # the is_alias_confirmed flag carried on authoritative rows.
+        # Materialize both cohorts; Q1 uses authoritative and keeps alias membership for robustness.
         auth_cols = table_columns(con, auth)
         auth_evidence_expr = (
             "CAST(tr.tracking_evidence AS VARCHAR)" if "tracking_evidence" in auth_cols else "'authoritative'"
@@ -451,6 +460,7 @@ def validate_and_link(
 
 
 def scope_table_name(scope: str, stage: str) -> str:
+    """Build a consistent temporary-table name for one chronological feature scope."""
     return f"{scope}_{stage}"
 
 
@@ -469,6 +479,7 @@ def build_scope_features(
     for table in (s1, s2, s3, s4, final):
         con.execute(f"DROP TABLE IF EXISTS {table}")
 
+    # Rolling windows include only matches strictly before the current match.
     recent_count_exprs = []
     recent_minutes_exprs = []
     for h in RECENT_WINDOWS_HOURS:
@@ -490,6 +501,7 @@ def build_scope_features(
             """
         )
 
+    # Stage 1: lags, recent activity, and prior-history averages.
     con.execute(
         f"""
         CREATE TEMP TABLE {s1} AS
@@ -538,6 +550,7 @@ def build_scope_features(
         """
     )
 
+    # Stage 2: turn lags into gaps, switches, and current streak lengths.
     con.execute(
         f"""
         CREATE TEMP TABLE {s2} AS
@@ -563,6 +576,7 @@ def build_scope_features(
         """
     )
 
+    # Stage 3: mark new sessions under each candidate inactivity threshold.
     boundaries = []
     for threshold in SESSION_THRESHOLDS_MIN:
         boundaries.append(
@@ -583,6 +597,7 @@ def build_scope_features(
         """
     )
 
+    # Stage 4: cumulative boundary markers become session IDs.
     session_ids = []
     for threshold in SESSION_THRESHOLDS_MIN:
         session_ids.append(
@@ -595,6 +610,7 @@ def build_scope_features(
         )
     con.execute(f"CREATE TEMP TABLE {s4} AS SELECT *, {','.join(session_ids)} FROM {s3}")
 
+    # Final stage: number games within each session and flag left-censored first sessions.
     game_nos, censor_flags = [], []
     for threshold in SESSION_THRESHOLDS_MIN:
         game_nos.append(
@@ -615,6 +631,7 @@ def build_scope_features(
 
 
 def feature_columns(prefix: str) -> List[str]:
+    """Return the chronological feature columns exported for one history scope."""
     cols = [
         f"{prefix}_sequence_no", f"prior_{prefix}_matches",
         f"prev_{prefix}_match_id", f"prev_{prefix}_queue_id",
@@ -644,6 +661,7 @@ def feature_columns(prefix: str) -> List[str]:
 
 
 def copy_query_to_parquet(con: duckdb.DuckDBPyConnection, query: str, output_file: Path) -> None:
+    """Execute a DuckDB query and write its result as compressed Parquet."""
     output_file.parent.mkdir(parents=True, exist_ok=True)
     if output_file.exists():
         output_file.unlink()
@@ -659,6 +677,7 @@ def build_timelines(
     linked_authoritative_root: Path,
     timeline_root: Path,
 ) -> pd.DataFrame:
+    """Build authoritative ranked histories and target-centric Solo/Duo timelines for Q1."""
     ranked_out = timeline_root / "ranked_history"
     solo_out = timeline_root / "solo420_targets"
     audit_out = timeline_root / "audit"
@@ -676,6 +695,7 @@ def build_timelines(
         if missing:
             raise RuntimeError(f"{source}: linked data missing required columns: {missing}")
 
+        # Q1 history uses ranked Solo/Duo and Flex only.
         con.execute("DROP TABLE IF EXISTS base")
         con.execute(
             f"""
@@ -694,10 +714,12 @@ def build_timelines(
         if duplicate_base:
             raise RuntimeError(f"{source}: duplicate player-match rows in ranked base: {duplicate_base}")
 
+        # Build pre-target features for all ranked history and for Solo/Duo-only history.
         ranked_features = build_scope_features(con, "ranked", "queue_id IN (420,440)", "ranked")
         solo_features = build_scope_features(con, "solo", "queue_id=420", "solo")
 
         optional_selects = [f"b.{c} AS target_{c}" for c in OPTIONAL_TARGET_COLUMNS if c in cols]
+        # Keep target fields separate from history fields so leakage is easy to audit.
         target_selects = [
             f"'{sql_text(source)}' AS source",
             "b.player_id", "b.match_id",
@@ -720,6 +742,7 @@ def build_timelines(
         ] + optional_selects
         ranked_selects = [f"r.{c}" for c in feature_columns("ranked")]
 
+        # Full ranked timeline for each tracked player.
         ranked_query = f"""
             SELECT {', '.join(target_selects)}, {', '.join(ranked_selects)},
                    (r.prev_ranked_match_id IS NOT NULL) AS has_prior_ranked_match
@@ -729,6 +752,7 @@ def build_timelines(
         ranked_file = ranked_out / f"{source}.parquet"
         copy_query_to_parquet(con, ranked_query, ranked_file)
 
+        # Solo/Duo target timeline used by Q1 modeling.
         solo_selects = [f"s.{c}" for c in feature_columns("solo")]
         solo_query = f"""
             SELECT {', '.join(target_selects)}, {', '.join(ranked_selects)}, {', '.join(solo_selects)},
@@ -790,10 +814,12 @@ def analytical_readiness(
     linked_authoritative_root: Path,
     output: Path,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Audit linked data quality and verify that chronological next-match analysis is feasible."""
     overview_rows, checks, feasibility_rows = [], [], []
     for source in REGIONS:
         matches = parquet_glob(processed[source], "matches")
         linked = linked_glob(linked_authoritative_root, source)
+        # Compact readiness audit: size, coverage, and chronological feasibility.
         overview = con.execute(
             f"""
             WITH m AS (
@@ -821,7 +847,7 @@ def analytical_readiness(
         for name, q in check_queries.items():
             checks.append({"source": source, "check": name, "problems": int(con.execute(q).fetchone()[0])})
 
-        # Feasibility for chronological next-match analysis.
+        # Verify that consecutive-match gaps are chronological in both history scopes.
         for scope, where in (("ranked_420_plus_440", "queue_id IN (420,440)"), ("solo420_only", "queue_id=420")):
             f = con.execute(
                 f"""
@@ -850,6 +876,7 @@ def analytical_readiness(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse processed-input paths, output locations, and DuckDB resource settings."""
     root = project_root()
     p = argparse.ArgumentParser(description="Validate processed data, rebuild tracking linkage, and build Q1 timelines.")
     p.add_argument(
@@ -874,21 +901,31 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run the processed-data preparation pipeline.
+
+    Validates preserved inputs, rebuilds tracked-player linkage and audits,
+    constructs leakage-safe Q1 timelines, and writes a compact pipeline summary.
+    """
+    # 1) Resolve preserved inputs and generated-output locations.
     args = parse_args()
     processed = dict(args.processed)
     if set(processed) != set(REGIONS):
         raise SystemExit(f"Expected processed sources {REGIONS}; got {sorted(processed)}")
 
+    # These folders are generated from the preserved processed inputs.
     linked_root = args.tracking / "linked"
     coverage_out = args.tracking / "coverage_audit"
     for out in (linked_root, coverage_out, args.analysis_audit, args.timelines):
         prepare_dir(out, args.overwrite)
 
+    # DuckDB performs the large Parquet joins and window calculations out of core.
+    # 2) Configure DuckDB for the large Parquet joins and window calculations.
     con = duckdb.connect(database=":memory:")
     con.execute(f"SET memory_limit='{sql_text(args.duckdb_memory_limit)}'")
     con.execute(f"SET threads={int(args.duckdb_threads)}")
     con.execute("SET preserve_insertion_order=false")
 
+    # 3) Rebuild linkage, audit analytical readiness, then create Q1 timelines.
     try:
         coverage, linkage, input_quality = validate_and_link(
             con,
@@ -913,6 +950,7 @@ def main() -> int:
     finally:
         con.close()
 
+    # 4) Persist a compact machine-readable record of the completed preparation.
     payload = {
         "processed_starting_point": True,
         "regions": list(REGIONS),

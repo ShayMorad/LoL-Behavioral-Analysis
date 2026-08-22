@@ -1,0 +1,16 @@
+# Keep source/documentation line endings consistent across Windows and Linux.
+* text=auto
+
+*.py   text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+*.csv  text eol=lf
+*.json text eol=lf
+
+# Binary formats.
+*.parquet binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.pdf     binary
+*.docx    binary

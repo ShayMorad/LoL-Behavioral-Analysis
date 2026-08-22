@@ -1,0 +1,58 @@
+{
+  "inputs": [
+    "C:\\Users\\shaym\\Desktop\\ComputerScience\\COURSES\\Year 4\\A Needle in a Data Haystack Introduction to Data Science\\project\\data\\Games of League of Legends\\matches_raw_kr"
+  ],
+  "format": "parquet",
+  "max_matches": null,
+  "batch_matches": 5000,
+  "keep_puuid": false,
+  "deduplicate": true,
+  "seed_lists": [
+    {
+      "label": "KR",
+      "path": "C:\\Users\\shaym\\Desktop\\ComputerScience\\COURSES\\Year 4\\A Needle in a Data Haystack Introduction to Data Science\\project\\data\\Games of League of Legends\\summoners_kr_used.txt"
+    }
+  ],
+  "source_json_objects_seen": 61381,
+  "matches_written": 61381,
+  "duplicates_skipped": 0,
+  "parse_or_schema_errors": 0,
+  "participants_written": 613810,
+  "teams_written": 122762,
+  "bans_written": 613810,
+  "queue_id_counts": {
+    "420": 55149,
+    "440": 6232
+  },
+  "platform_id_counts": {
+    "KR": 61381
+  },
+  "match_prefix_counts": {
+    "KR": 61381
+  },
+  "patch_counts": {
+    "15.20": 3910,
+    "15.21": 4353,
+    "15.22": 6735,
+    "15.23": 9400,
+    "15.24": 36983
+  },
+  "participant_count_counts": {
+    "10": 61381
+  },
+  "team_count_counts": {
+    "2": 61381
+  },
+  "game_mode_counts": {
+    "CLASSIC": 61381
+  },
+  "end_of_game_result_counts": {
+    "GameComplete": 61379,
+    "Abort_AntiCheatExit": 2
+  },
+  "platform_counts_by_input": {
+    "C:\\Users\\shaym\\Desktop\\ComputerScience\\COURSES\\Year 4\\A Needle in a Data Haystack Introduction to Data Science\\project\\data\\Games of League of Legends\\matches_raw_kr": {
+      "KR": 61381
+    }
+  }
+}

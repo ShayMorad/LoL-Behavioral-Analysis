@@ -58,6 +58,7 @@ POST_LOSS_BINS = (
     (1440, np.inf, ">24h"),
 )
 
+# Separate feature groups let us measure the incremental predictive value of behavior.
 HISTORY_BASE_FEATURES = [
     "prior_ranked_win_rate",
     "log1p_prior_ranked_matches",
@@ -301,6 +302,7 @@ def fit_within_player_lpm(
             f"{source}/{hypothesis}: duplicate player-match rows in regression sample."
         )
 
+    # Player demeaning removes all time-invariant player-level differences.
     yw, Xw = within_demean(y, Xm, player_codes)
 
     # Drop columns with no within-player variation.
@@ -326,6 +328,7 @@ def fit_within_player_lpm(
     xtx = Xw.T @ Xw
     bread = np.linalg.pinv(xtx)
 
+    # Two-way clustering handles repeated players and shared physical matches.
     v_player = cluster_covariance(
         Xw, resid, bread, player_codes, p
     )
@@ -559,6 +562,7 @@ def fit_h1(
         specification: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Fit the session-depth model for one region and session threshold."""
+    # H1 exposure: game number within the observed session.
     exposure_col = f"ranked_session_game_no_{threshold}m"
     cats = [str(i) for i in range(1, SESSION_CAP)] + [f"{SESSION_CAP}+"]
     exposure = session_categories(df[exposure_col])
@@ -600,6 +604,7 @@ def fit_h3(
         specification: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Fit the recent-volume model for one region and time window."""
+    # H3 exposure: recent ranked-game count in the chosen activity window.
     exposure_col = f"ranked_games_prev_{window_hours}h"
     cats = [str(i) for i in range(0, VOLUME_CAP)] + [f"{VOLUME_CAP}+"]
     exposure = volume_categories(df[exposure_col])
@@ -640,6 +645,7 @@ def fit_h2(
         specification: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Fit the categorical post-loss requeue model for one region."""
+    # H2 applies only after a valid previous loss lasting at least 10 minutes.
     sub = df[
         (df["prev_ranked_win"] == False)
         & df["prev_ranked_duration_s"].notna()
@@ -695,6 +701,7 @@ def fit_h2_continuous(
         source: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Fit the continuous post-loss gap sensitivity model."""
+    # Sensitivity version estimates one effect per doubling of (1 + gap minutes).
     sub = df[
         (df["prev_ranked_win"] == False)
         & df["prev_ranked_duration_s"].notna()
@@ -795,6 +802,7 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
     """Create strictly pre-target predictors used by the decision trees."""
     out = df.copy()
 
+    # Historical-performance features use only information available before the target.
     out["prior_ranked_win_rate"] = pd.to_numeric(
         out["prior_ranked_win_rate"], errors="coerce"
     )
@@ -825,6 +833,7 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
         / 60.0
     )
 
+    # Behavioral timing/activity features for behavior-only and combined trees.
     out["log1p_gap_from_prev_ranked_min"] = np.log1p(
         pd.to_numeric(out["gap_from_prev_ranked_min"], errors="coerce")
         .clip(lower=0)
@@ -876,6 +885,7 @@ def chronological_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     split = pd.Series(index=out.index, dtype="object")
 
+    # Split chronologically inside each region so future matches never enter training.
     for source in REGIONS:
         mask = out["source"] == source
         times = out.loc[mask, "target_start_ms"].astype(np.int64)
@@ -1044,6 +1054,7 @@ def decision_tree_grid(
     """Select pre-pruned entropy-tree settings using validation ROC-AUC."""
     rows = []
 
+    # Small pre-pruning grid; validation AUC chooses the final entropy tree.
     for depth in MAX_DEPTH_GRID:
         for min_leaf in MIN_SAMPLES_LEAF_GRID:
             model = DecisionTreeClassifier(
@@ -1084,45 +1095,6 @@ def decision_tree_grid(
     model.fit(X_train, y_train)
     return model, grid
 
-
-def error_analysis(test: pd.DataFrame, prob: np.ndarray) -> pd.DataFrame:
-    """Summarize combined-tree errors by region and behavioral subgroups."""
-    work = test.copy()
-    work["pred_prob"] = prob
-    work["pred"] = (prob >= 0.5).astype(int)
-    work["correct"] = work["pred"] == work["target_win"]
-    work["session_bucket"] = work["session_depth_30m"].clip(upper=5).map(
-        lambda x: "5+" if x >= 5 else str(int(x))
-    )
-    work["volume_bucket"] = work["ranked_games_prev_6h_capped"].clip(upper=4).map(
-        lambda x: "4+" if x >= 4 else str(int(x))
-    )
-    work["previous_result"] = np.where(
-        work["previous_ranked_was_loss"] == 1, "loss", "win"
-    )
-
-    groups = {
-        "region": ["source"],
-        "session_depth": ["source", "session_bucket"],
-        "recent_volume": ["source", "volume_bucket"],
-        "previous_result": ["source", "previous_result"],
-    }
-    frames = []
-    for group_type, cols in groups.items():
-        summary = (
-            work.groupby(cols, dropna=False)
-            .agg(
-                n=("target_win", "size"),
-                observed_win_rate=("target_win", "mean"),
-                mean_predicted_win_probability=("pred_prob", "mean"),
-                accuracy=("correct", "mean"),
-            )
-            .reset_index()
-        )
-        summary.insert(0, "group_type", group_type)
-        frames.append(summary)
-
-    return pd.concat(frames, ignore_index=True, sort=False)
 
 
 def holm_adjust(p_values: pd.Series) -> pd.Series:
@@ -1214,6 +1186,7 @@ def run_eda(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -> dict:
         d.mkdir(parents=True, exist_ok=True)
 
     glob = timeline_glob(timelines)
+    # Descriptive sample: observable prior ranked history and known target outcome.
     con.execute("DROP TABLE IF EXISTS q1_sample")
     con.execute(
         f"""
@@ -1223,6 +1196,7 @@ def run_eda(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -> dict:
         """
     )
 
+    # Sample size and target-outcome summary by region.
     overview = con.execute(
         """
         SELECT source,
@@ -1237,6 +1211,7 @@ def run_eda(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -> dict:
     ).fetchdf()
     save_csv(overview, tables / "sample_overview.csv")
 
+    # Gap distribution supports the session-threshold sensitivity analysis.
     gap_quantiles = con.execute(
         """
         SELECT source,
@@ -1295,6 +1270,7 @@ def run_eda(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -> dict:
     session_depth = pd.concat(session_rows, ignore_index=True)
     save_csv(session_depth, tables / "session_depth_outcomes.csv")
 
+    # Descriptive post-loss outcomes by requeue-delay bin.
     post_loss = con.execute(
         """
         SELECT source,
@@ -1326,6 +1302,7 @@ def run_eda(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -> dict:
     post_loss_table = add_winrate_ci(post_loss_table)
     save_csv(post_loss_table, tables / "post_loss_requeue_outcomes.csv")
 
+    # Descriptive recent-volume outcomes across all candidate windows.
     recent_rows = []
     for h in (3, 6, 12, 24):
         col = f"ranked_games_prev_{h}h"
@@ -1395,6 +1372,7 @@ def run_statistics(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     tables.mkdir(parents=True, exist_ok=True)
     coef_frames, summary_frames = [], []
 
+    # Fit every primary model plus threshold/window sensitivities by region.
     for source in REGIONS:
         print(f"[q1 statistics] {source}", flush=True)
         df = load_region(con, region_file(timelines, source))
@@ -1506,6 +1484,7 @@ def run_prediction(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     preds_dir = out / 'predictions'
     for d in (tables, preds_dir):
         d.mkdir(parents=True, exist_ok=True)
+    # Build the leakage-safe prediction sample, then split it chronologically.
     raw = load_primary_sample(con, timelines)
     data = add_engineered_features(raw)
     del raw
@@ -1528,6 +1507,7 @@ def run_prediction(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     train = data[data['split'] == 'train'].copy()
     validation = data[data['split'] == 'validation'].copy()
     test = data[data['split'] == 'test'].copy()
+    # Region/patch encoding and numeric imputation are learned from training only.
     context_schema = fit_context_schema(train)
     train_context = make_context_features(train, context_schema)
     val_context = make_context_features(validation, context_schema)
@@ -1543,6 +1523,7 @@ def run_prediction(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     )
     y_train = train['target_win'].astype(int)
     y_val = validation['target_win'].astype(int)
+    # Compare history-only, behavior-only, and combined information directly.
     feature_sets = {
         "history_tree": history_features,
         "behavior_tree": behavior_features,
@@ -1564,6 +1545,7 @@ def run_prediction(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     validation_grid = pd.concat(grids, ignore_index=True)
     save_csv(validation_grid, tables / 'validation_grid.csv')
     train_base_rate = float(y_train.mean())
+    # Baselines make the held-out tree metrics meaningful.
     predictions: Dict[str, np.ndarray] = {
         "majority_baseline": np.full(len(test), train_base_rate, dtype=float),
         "historical_win_rate_baseline": (
@@ -1581,6 +1563,7 @@ def run_prediction(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     metrics = pd.DataFrame(metric_rows)
     save_csv(metrics, tables / 'test_metrics.csv')
     save_csv(metrics[['model', 'subgroup', 'n', 'tn', 'fp', 'fn', 'tp']], tables / 'confusion_matrices.csv')
+    # Quantify the held-out gain from adding behavioral features to history.
     incremental = []
     for subgroup in ['ALL', *REGIONS]:
         h = metrics[(metrics['model'] == 'history_tree') & (metrics['subgroup'] == subgroup)].iloc[0]
@@ -1601,6 +1584,7 @@ def run_prediction(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
         )
     incremental_df = pd.DataFrame(incremental)
     save_csv(incremental_df, tables / 'incremental_value.csv')
+    # Importance describes tree usage; it is not a causal importance measure.
     importance = pd.DataFrame(
         {
             "feature": combined_features,
@@ -1872,6 +1856,7 @@ def run_robustness(con: duckdb.DuckDBPyConnection, timelines: Path, out: Path) -
     """Repeat primary H1-H3 models for the alias-confirmed and >=5-minute samples."""
     tables = out / "tables"
     effect_frames, sample_rows = [], []
+    # Refit the same primary models on provenance and short-game robustness samples.
     for source in REGIONS:
         df = load_region_all_durations(con, region_file(timelines, source))
         for variant, sub in sample_variants(df).items():
@@ -1919,7 +1904,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run the complete Question 1 analysis pipeline and save report outputs."""
+    """Run the complete Problem 1 analysis.
+
+    Produces descriptive tables, adjusted within-player inference, chronological
+    decision-tree evaluation, robustness checks, and the final report figures.
+    """
+    # 1) Prepare output folders and the in-memory DuckDB connection.
     args = parse_args()
     prepare_dir(args.output, args.overwrite)
     output_dirs = (
@@ -1932,10 +1922,12 @@ def main() -> int:
     for directory in output_dirs:
         directory.mkdir(parents=True, exist_ok=True)
 
+    # DuckDB scans Parquet; pandas/sklearn handle the compact modeling samples.
     con = duckdb.connect(database=":memory:")
     con.execute(f"SET memory_limit='{args.duckdb_memory_limit}'")
     con.execute(f"SET threads={int(args.duckdb_threads)}")
     con.execute("SET preserve_insertion_order=false")
+    # 2) Run the four scientific stages in report order.
     try:
         print("\n=== Q1: descriptive analysis ===", flush=True)
         run_eda(con, args.timelines, args.output)
@@ -1960,6 +1952,7 @@ def main() -> int:
     finally:
         con.close()
 
+    # 3) Collect the small set of headline values used in the report/reproduction check.
     metrics = pred["metrics"]
     overall = metrics[metrics["subgroup"] == "ALL"].set_index("model")
     primary = model_summary[
@@ -1988,6 +1981,7 @@ def main() -> int:
     ])
     save_csv(key_results, args.output / "tables/key_results_for_report.csv")
 
+    # 4) Save a compact audit summary listing the frozen Q1 settings and figures.
     summary = {
         "question": (
             "How are recent competitive volume, session depth, and post-loss requeue "

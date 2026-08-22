@@ -1,0 +1,59 @@
+{
+  "inputs": [
+    "C:\\Users\\shaym\\Desktop\\ComputerScience\\COURSES\\Year 4\\A Needle in a Data Haystack Introduction to Data Science\\project\\data\\Games of League of Legends\\matches_raw_na"
+  ],
+  "format": "parquet",
+  "max_matches": null,
+  "batch_matches": 5000,
+  "keep_puuid": false,
+  "deduplicate": true,
+  "seed_lists": [
+    {
+      "label": "NA",
+      "path": "C:\\Users\\shaym\\Desktop\\ComputerScience\\COURSES\\Year 4\\A Needle in a Data Haystack Introduction to Data Science\\project\\data\\Games of League of Legends\\summoners_na_used.txt"
+    }
+  ],
+  "source_json_objects_seen": 69393,
+  "matches_written": 69393,
+  "duplicates_skipped": 0,
+  "parse_or_schema_errors": 0,
+  "participants_written": 693930,
+  "teams_written": 138786,
+  "bans_written": 693930,
+  "queue_id_counts": {
+    "420": 62709,
+    "440": 6684
+  },
+  "platform_id_counts": {
+    "NA1": 69393
+  },
+  "match_prefix_counts": {
+    "NA1": 69393
+  },
+  "patch_counts": {
+    "15.20": 3946,
+    "15.21": 4723,
+    "15.22": 6747,
+    "15.23": 9593,
+    "15.24": 40680,
+    "16.1": 3704
+  },
+  "participant_count_counts": {
+    "10": 69393
+  },
+  "team_count_counts": {
+    "2": 69393
+  },
+  "game_mode_counts": {
+    "CLASSIC": 69393
+  },
+  "end_of_game_result_counts": {
+    "GameComplete": 69389,
+    "Abort_AntiCheatExit": 4
+  },
+  "platform_counts_by_input": {
+    "C:\\Users\\shaym\\Desktop\\ComputerScience\\COURSES\\Year 4\\A Needle in a Data Haystack Introduction to Data Science\\project\\data\\Games of League of Legends\\matches_raw_na": {
+      "NA1": 69393
+    }
+  }
+}
