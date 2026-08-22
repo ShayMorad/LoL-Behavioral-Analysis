@@ -1,0 +1,14 @@
+{
+  "problem": "Champion Pairings & Combo Performance",
+  "queue_id": 420,
+  "minimum_duration_seconds": 600,
+  "valid_teams": 876012,
+  "champions": 172,
+  "champion_pairs": 14701,
+  "minimum_pair_games_for_landscape": 500,
+  "minimum_pair_games_for_ranked_performance": 1000,
+  "report_figures": [
+    "figure_6_pair_rankings.png",
+    "figure_7_combo_landscape.png"
+  ]
+}

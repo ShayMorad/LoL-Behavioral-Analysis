@@ -1,0 +1,28 @@
+{
+  "question": "How are recent competitive volume, session depth, and post-loss requeue timing associated with subsequent Ranked Solo/Duo performance?",
+  "primary_session_boundary_minutes": 30,
+  "session_sensitivity_minutes": [
+    45,
+    60,
+    90
+  ],
+  "primary_volume_window_hours": 6,
+  "volume_sensitivity_hours": [
+    3,
+    12,
+    24
+  ],
+  "primary_target_duration_min": 10,
+  "report_figures": [
+    "figure_1_inter_match_gap_ecdf.png",
+    "figure_2_adjusted_behavior_effects.png",
+    "figure_3_prediction_evaluation.png",
+    "figure_4_feature_importance.png",
+    "figure_5_tree_top_levels.png"
+  ],
+  "robustness": {
+    "alias_max_abs_change_pp": 5.704549070447064,
+    "ge5_max_abs_change_pp": 0.09221654278496377,
+    "holm_significant_total": 0
+  }
+}
