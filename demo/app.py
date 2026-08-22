@@ -49,7 +49,6 @@ REGION_COLORS = {
 
 st.set_page_config(
     page_title="Finding the Needle in Ranked Play",
-    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded",
 )
