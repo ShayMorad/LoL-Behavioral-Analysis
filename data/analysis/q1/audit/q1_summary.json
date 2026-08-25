@@ -21,8 +21,8 @@
     "figure_5_tree_top_levels.png"
   ],
   "robustness": {
-    "alias_max_abs_change_pp": 5.704549070447064,
-    "ge5_max_abs_change_pp": 0.09221654278496377,
+    "alias_max_abs_change_pp": 5.704549070447079,
+    "ge5_max_abs_change_pp": 0.09221654278500435,
     "holm_significant_total": 0
   }
 }

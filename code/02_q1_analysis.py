@@ -34,7 +34,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.tree import DecisionTreeClassifier
 
 REGIONS = ('NA', 'KR', 'EU')
 PRIMARY_SESSION_THRESHOLD = 30
@@ -1830,25 +1830,139 @@ def plot_feature_importance(pred: dict, output: Path) -> None:
 
 
 def plot_tree_top_levels(pred: dict, output: Path) -> None:
-    """Plot only the top three tree levels at a readable size."""
+    """Draw a simplified, presentation-focused view of the tree's top levels."""
     model = pred["models"]["combined_tree"]
-    features = pred["combined_features"]
-    fig, ax = plt.subplots(figsize=(16, 8))
-    plot_tree(
-        model,
-        feature_names=[short_tree_feature_name(x) for x in features],
-        class_names=["Loss", "Win"],
-        filled=True,
-        rounded=True,
-        max_depth=2,
-        fontsize=10,
-        proportion=True,
-        precision=2,
-        impurity=False,
-        ax=ax,
+    features = [short_tree_feature_name(x) for x in pred["combined_features"]]
+    tree = model.tree_
+
+    # Only the first three levels are shown. Unlike sklearn.plot_tree, this
+    # custom view intentionally keeps just the split rule inside each node so
+    # the figure remains readable when inserted into the report.
+    max_display_depth = 2
+    fig, ax = plt.subplots(figsize=(16, 7.5))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    positions: dict[int, tuple[float, float]] = {}
+    y_by_depth = {0: 0.84, 1: 0.53, 2: 0.22}
+
+    def place(node_id: int, depth: int, left: float, right: float) -> None:
+        """Assign balanced display coordinates to the visible tree nodes."""
+        x = (left + right) / 2.0
+        positions[node_id] = (x, y_by_depth[depth])
+
+        if depth >= max_display_depth:
+            return
+
+        left_child = tree.children_left[node_id]
+        right_child = tree.children_right[node_id]
+        if left_child == right_child:
+            return
+
+        place(left_child, depth + 1, left, x)
+        place(right_child, depth + 1, x, right)
+
+    # Leave the right side free for the readability note.
+    place(0, 0, 0.035, 0.745)
+
+    # Draw connecting branches behind the node boxes.
+    for node_id, (x, y) in positions.items():
+        left_child = tree.children_left[node_id]
+        right_child = tree.children_right[node_id]
+
+        for child in (left_child, right_child):
+            if child not in positions:
+                continue
+            child_x, child_y = positions[child]
+            ax.annotate(
+                "",
+                xy=(child_x, child_y + 0.055),
+                xytext=(x, y - 0.055),
+                arrowprops={
+                    "arrowstyle": "-",
+                    "linewidth": 1.6,
+                    "color": "#777777",
+                },
+            )
+
+    # Keep a single large piece of information in each node: the split rule.
+    for node_id, (x, y) in positions.items():
+        feature_index = tree.feature[node_id]
+
+        if feature_index >= 0:
+            feature_name = features[feature_index]
+            threshold = float(tree.threshold[node_id])
+
+            # Integer/binary-style thresholds are easier to read without
+            # unnecessary decimal precision; continuous thresholds keep 2 dp.
+            if abs(threshold - round(threshold)) < 0.005:
+                threshold_text = f"{threshold:.0f}"
+            else:
+                threshold_text = f"{threshold:.2f}"
+
+            label = f"{feature_name}\n≤ {threshold_text}"
+        else:
+            label = "Terminal node"
+
+        ax.text(
+            x,
+            y,
+            label,
+            ha="center",
+            va="center",
+            fontsize=13,
+            fontweight="bold",
+            color="#222222",
+            bbox={
+                "boxstyle": "round,pad=0.65,rounding_size=0.15",
+                "facecolor": "#F5E6C8",
+                "edgecolor": "#8A6B2B",
+                "linewidth": 1.5,
+            },
+        )
+
+    fig.suptitle(
+        "How the combined tree makes its first decisions",
+        x=0.04,
+        y=0.98,
+        ha="left",
+        fontweight="bold",
+        fontsize=17,
+        color="#222222",
     )
-    ax.set_title("Top three levels of the pre-pruned entropy decision tree", fontweight="bold", fontsize=15, pad=14)
-    fig.tight_layout()
+    fig.text(
+        0.04,
+        0.925,
+        "Top three levels of the validated pre-pruned entropy tree",
+        ha="left",
+        fontsize=11,
+        color="#555555",
+    )
+
+    note = (
+        "* For readability, each node shows only its split rule.\n"
+        "  Sample counts, class proportions, and impurity are omitted.\n"
+        "  The trained tree continues below the levels shown.\n"
+        "  Left branch = rule true; right branch = rule false."
+    )
+    fig.text(
+        0.79,
+        0.38,
+        note,
+        ha="left",
+        va="center",
+        fontsize=10.5,
+        color="#444444",
+        bbox={
+            "boxstyle": "round,pad=0.6",
+            "facecolor": "#F7F7F7",
+            "edgecolor": "#BBBBBB",
+            "linewidth": 1.0,
+        },
+    )
+
+    fig.tight_layout(rect=[0, 0.02, 0.98, 0.90])
     transparent_save(fig, output)
 
 

@@ -5,4 +5,4 @@ Behavior tree test ROC-AUC,0.5122917730738012
 Combined tree test ROC-AUC,0.518522266386887
 Combined - history AUC,0.004740784424761002
 Holm-significant robustness terms,0.0
-Max >=5m coefficient change (pp),0.09221654278496377
+Max >=5m coefficient change (pp),0.09221654278500435
