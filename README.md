@@ -2,7 +2,7 @@
 
 ### Behavioral and Strategic Patterns in League of Legends
 
-Final project for **67978 — A Needle in a Data Haystack: Introduction to Data Science**.
+An academic data science project investigating player behavior, performance patterns, and temporal dynamics across League of Legends matches.
 
 This project studies ranked League of Legends from three complementary perspectives:
 
